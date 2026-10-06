@@ -23,6 +23,7 @@ class DevolucaoDatabase:
     def conectar(self):
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA foreign_keys = ON")
         return conn
 
     # Função para criar a tabela de devoluções, caso não exista.
@@ -48,6 +49,31 @@ class DevolucaoDatabase:
                 """
             )
 
+            # Cria a tabela de OCs relacionadas às devoluções, caso não exista.
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS ocs_devolucao
+                (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+                    devolucao_id INTEGER NOT NULL,
+
+                    numero_oc TEXT NOT NULL,
+
+                    valor_nf REAL NOT NULL,
+
+                    FOREIGN KEY (devolucao_id)
+                    REFERENCES devolucoes(id)
+                    ON DELETE CASCADE,
+
+                    UNIQUE (
+                        devolucao_id,
+                        numero_oc
+                    )
+                )
+                """
+            )
+
             # Índices para melhorar as buscas
             conn.execute(
                 """
@@ -68,8 +94,12 @@ class DevolucaoDatabase:
             conn.commit()
 
     # Função para criar uma nova devolução.
-    def criar_devolucao(self, conferente, numero_oc, placa, motivo, cliente, valor_nf):
+    def criar_devolucao(self, conferente, lista_ocs, placa, motivo, cliente):
         agora = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        valor_total = sum(
+            item["valor_nf"]
+            for item in lista_ocs
+        )
 
         with self.conectar() as conn:
             cursor = conn.execute(
@@ -90,18 +120,45 @@ class DevolucaoDatabase:
                 """,
                 (
                     conferente,
-                    numero_oc,
+
+                    ", ".join(
+                        item["numero_oc"]
+                        for item in lista_ocs
+                    ),
+
                     placa.upper(),
                     motivo,
                     cliente,
-                    valor_nf,
+                    valor_total,
                     agora,
                     "ABERTA"
                 )
             )
 
+            devolucao_id = cursor.lastrowid
+
+            for item in lista_ocs:
+
+                conn.execute(
+                    """
+                    INSERT INTO ocs_devolucao
+                    (
+                        devolucao_id,
+                        numero_oc,
+                        valor_nf
+                    )
+
+                    VALUES (?, ?, ?)
+                    """,
+                    (
+                        devolucao_id,
+                        item["numero_oc"],
+                        item["valor_nf"]
+                    )
+                )
+
             conn.commit()
-            return cursor.lastrowid
+            return devolucao_id
 
     # Função para listar todas as devoluções abertas.
     def listar_abertas(self):
@@ -168,4 +225,51 @@ class DevolucaoDatabase:
                 """,
                 (prefixo,)
             ).fetchall()
+        return registros
+
+    # Função específica para exportação. Retorna uma linha para cada OC da devolução.
+    def buscar_mes_exportacao(self, mes, ano):
+
+        mes = str(mes).zfill(2)
+        ano = str(ano)
+
+        prefixo = f"{ano}-{mes}"
+
+        with self.conectar() as conn:
+
+            registros = conn.execute(
+                """
+                SELECT
+                    d.id,
+                    d.conferente_abertura,
+                    o.numero_oc,
+                    d.placa_caminhao,
+                    d.motivo,
+                    d.cliente,
+                    o.valor_nf,
+                    d.data_hora_inicio,
+                    d.data_hora_fim,
+                    d.conferente_finalizacao,
+                    d.status
+
+                FROM devolucoes d
+
+                INNER JOIN ocs_devolucao o
+                    ON o.devolucao_id = d.id
+
+                WHERE
+                    substr(
+                        d.data_hora_inicio,
+                        1,
+                        7
+                    ) = ?
+
+                ORDER BY
+                    d.data_hora_inicio ASC,
+                    d.id ASC,
+                    o.id ASC
+                """,
+                (prefixo,)
+            ).fetchall()
+
         return registros

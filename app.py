@@ -111,6 +111,15 @@ class App(ctk.CTk):
 
         return f"R$ {texto}"
 
+    # Função para validar se o valor contém apenas números.
+    @staticmethod
+    def validar_somente_numeros(valor):
+
+        if valor == "":
+            return True
+
+        return valor.isdigit()
+
     # Função Tela de Login
     def tela_login(self):
         self.limpar_tela()
@@ -350,7 +359,7 @@ class App(ctk.CTk):
         # CABEÇALHOS
         nomes_colunas = {
             "ID": "ID",
-            "OC": "NÚMERO OC",
+            "OC": "NÚMERO OCS",
             "CLIENTE": "CLIENTE",
             "PLACA": "PLACA",
             "MOTIVO": "MOTIVO",
@@ -373,8 +382,8 @@ class App(ctk.CTk):
 
         self.tree.column(
             "OC",
-            width=130,
-            minwidth=100,
+            width=300,
+            minwidth=180,
             anchor="center"
         )
 
@@ -605,23 +614,53 @@ class App(ctk.CTk):
     def abrir_nova_devolucao(self):
 
         janela = ctk.CTkToplevel(self)
-        janela.title("Iniciar Nova Devolução")
-        janela.resizable(False, False)
 
-        largura = 620
-        altura = 620
+        janela.title(
+            "Iniciar Nova Devolução"
+        )
 
-        janela.geometry(f"{largura}x{altura}")
+        janela.resizable(
+            False,
+            False
+        )
 
-        # CENTRALIZAR
+        largura = 700
+        altura = 780
+
+        janela.geometry(
+            f"{largura}x{altura}"
+        )
+
+        # CENTRALIZAR JANELA
         janela.update_idletasks()
-        x = (janela.winfo_screenwidth() - largura) // 2
-        y = (janela.winfo_screenheight() - altura) // 2
-        janela.geometry(f"{largura}x{altura}+{x}+{y}")
+
+        x = (
+            janela.winfo_screenwidth()
+            - largura
+        ) // 2
+
+        y = (
+            janela.winfo_screenheight()
+            - altura
+        ) // 2
+
+        janela.geometry(
+            f"{largura}x{altura}+{x}+{y}"
+        )
+
         janela.transient(self)
+
         janela.grab_set()
 
+        # Abrir janela no maximo
+        janela.state("zoomed")
+
+        # LISTA DAS OCs
+
+        lista_ocs = []
+
         # TÍTULO
+
         ctk.CTkLabel(
             janela,
             text="NOVA DEVOLUÇÃO",
@@ -631,14 +670,24 @@ class App(ctk.CTk):
                 "bold"
             )
         ).pack(
-            pady=(25, 20)
+            pady=(20, 10)
         )
 
         # FORMULÁRIO
-        frame_form = ctk.CTkFrame(janela)
-        frame_form.pack(expand=True, fill="both", padx=25, pady=(0, 20))
 
-        # OC
+        frame_form = ctk.CTkFrame(
+            janela
+        )
+
+        frame_form.pack(
+            expand=True,
+            fill="both",
+            padx=25,
+            pady=(0, 20)
+        )
+
+        # NÚMERO DA OC
+
         ctk.CTkLabel(
             frame_form,
             text="Número da OC",
@@ -650,22 +699,339 @@ class App(ctk.CTk):
         ).pack(
             anchor="w",
             padx=30,
-            pady=(20, 3)
+            pady=(15, 3)
+        )
+
+        frame_oc = ctk.CTkFrame(
+            frame_form,
+            fg_color="transparent"
+        )
+
+        frame_oc.pack(
+            fill="x",
+            padx=30
+        )
+
+        # VALIDAÇÃO DA OC
+        # SOMENTE NÚMEROS
+
+        validacao_oc = (
+            janela.register(
+                self.validar_somente_numeros
+            )
         )
 
         entry_oc = ctk.CTkEntry(
-            frame_form,
-            width=500,
+            frame_oc,
             height=40,
-            placeholder_text="Informe o número da OC"
+            placeholder_text="Número da OC",
+            validate="key",
+            validatecommand=(
+                validacao_oc,
+                "%P"
+            )
         )
 
         entry_oc.pack(
+            side="left",
+            expand=True,
+            fill="x",
+            padx=(0, 5)
+        )
+
+        # VALOR DA NF DA OC
+
+        entry_valor_oc = ctk.CTkEntry(
+            frame_oc,
+            width=180,
+            height=40,
+            placeholder_text="Valor NF"
+        )
+
+        entry_valor_oc.pack(
+            side="left",
+            padx=5
+        )
+
+        # LISTAGEM DAS OCs ADICIONADAS
+
+        frame_lista = ctk.CTkFrame(
+            frame_form
+        )
+
+        frame_lista.pack(
+            fill="x",
             padx=30,
-            pady=(0, 8)
+            pady=10
+        )
+
+        lbl_lista = ctk.CTkLabel(
+            frame_lista,
+            text="Nenhuma OC adicionada.",
+            justify="left",
+            anchor="w"
+        )
+
+        lbl_lista.pack(
+            fill="x",
+            padx=10,
+            pady=10
+        )
+
+        # VALOR TOTAL
+
+        lbl_total = ctk.CTkLabel(
+            frame_lista,
+            text="Valor total: R$ 0,00",
+            font=(
+                "Arial",
+                14,
+                "bold"
+            )
+        )
+
+        lbl_total.pack(
+            anchor="e",
+            padx=10,
+            pady=(0, 10)
+        )
+
+        # ATUALIZAR LISTAGEM DE OCs
+
+        def atualizar_lista():
+
+            if not lista_ocs:
+
+                lbl_lista.configure(
+                    text="Nenhuma OC adicionada."
+                )
+
+                lbl_total.configure(
+                    text="Valor total: R$ 0,00"
+                )
+
+                return
+
+            linhas = []
+
+            for item in lista_ocs:
+
+                linhas.append(
+                    f"OC {item['numero_oc']}  |  "
+                    f"{self.formatar_moeda(item['valor_nf'])}"
+                )
+
+            lbl_lista.configure(
+                text="\n".join(linhas)
+            )
+
+            total = sum(
+                item["valor_nf"]
+                for item in lista_ocs
+            )
+
+            lbl_total.configure(
+                text=(
+                    f"Valor total: "
+                    f"{self.formatar_moeda(total)}"
+                )
+            )
+
+        # ADICIONAR OC
+
+        def adicionar_oc():
+
+            numero_oc = (
+                entry_oc
+                .get()
+                .strip()
+            )
+
+            valor = (
+                entry_valor_oc
+                .get()
+                .strip()
+            )
+
+            # VALIDAR OC
+
+            if not numero_oc:
+
+                messagebox.showwarning(
+                    "OC",
+                    "Informe o número da OC.",
+                    parent=janela
+                )
+
+                entry_oc.focus_force()
+
+                return
+
+            if not numero_oc.isdigit():
+
+                messagebox.showerror(
+                    "OC Inválida",
+                    "A OC deve conter somente números.",
+                    parent=janela
+                )
+
+                entry_oc.focus_force()
+
+                return
+
+            # NÃO PERMITE OC DUPLICADA
+
+            if any(
+                item["numero_oc"] == numero_oc
+                for item in lista_ocs
+            ):
+
+                messagebox.showwarning(
+                    "OC Duplicada",
+                    f"A OC {numero_oc} já foi adicionada.",
+                    parent=janela
+                )
+
+                entry_oc.delete(
+                    0,
+                    "end"
+                )
+
+                entry_oc.focus_force()
+
+                return
+
+            # VALIDAR VALOR
+
+            if not valor:
+
+                messagebox.showwarning(
+                    "Valor",
+                    "Informe o valor da NF da OC.",
+                    parent=janela
+                )
+
+                entry_valor_oc.focus_force()
+
+                return
+
+            try:
+
+                valor_float = (
+                    self.converter_valor(
+                        valor
+                    )
+                )
+
+            except ValueError:
+
+                messagebox.showerror(
+                    "Valor Inválido",
+                    "Informe um valor válido para a NF.\n\n"
+                    "Exemplos:\n"
+                    "5000\n"
+                    "5000,00\n"
+                    "5.000,00",
+                    parent=janela
+                )
+
+                entry_valor_oc.focus_force()
+
+                return
+
+            if valor_float < 0:
+
+                messagebox.showerror(
+                    "Valor Inválido",
+                    "O valor não pode ser negativo.",
+                    parent=janela
+                )
+
+                entry_valor_oc.focus_force()
+
+                return
+
+            # ADICIONAR NA LISTA
+
+            lista_ocs.append(
+                {
+                    "numero_oc": numero_oc,
+                    "valor_nf": valor_float
+                }
+            )
+
+            # LIMPAR CAMPOS
+
+            entry_oc.delete(
+                0,
+                "end"
+            )
+
+            entry_valor_oc.delete(
+                0,
+                "end"
+            )
+
+            atualizar_lista()
+
+            entry_oc.focus_force()
+
+        # BOTÃO ADICIONAR OC
+
+        ctk.CTkButton(
+            frame_oc,
+            text="+ ADICIONAR",
+            width=110,
+            height=40,
+            command=adicionar_oc
+        ).pack(
+            side="right",
+            padx=(5, 0)
+        )
+
+        # ENTER NO VALOR ADICIONA A OC
+
+        entry_valor_oc.bind(
+            "<Return>",
+            lambda event:
+            adicionar_oc()
+        )
+
+        # REMOVER ÚLTIMA OC
+
+        def remover_ultima_oc():
+
+            if not lista_ocs:
+
+                messagebox.showinfo(
+                    "Informação",
+                    "Não existem OCs para remover.",
+                    parent=janela
+                )
+
+                return
+
+            lista_ocs.pop()
+
+            atualizar_lista()
+
+            entry_oc.focus_force()
+
+        ctk.CTkButton(
+            frame_lista,
+            text="REMOVER ÚLTIMA OC",
+            width=160,
+            fg_color="#7F8C8D",
+            hover_color="#626567",
+            command=remover_ultima_oc
+        ).pack(
+            anchor="w",
+            padx=10,
+            pady=(0, 10)
         )
 
         # PLACA
+
         ctk.CTkLabel(
             frame_form,
             text="Placa do Caminhão",
@@ -682,17 +1048,18 @@ class App(ctk.CTk):
 
         entry_placa = ctk.CTkEntry(
             frame_form,
-            width=500,
+            width=580,
             height=40,
             placeholder_text="Ex.: ABC1D23"
         )
 
         entry_placa.pack(
-            padx=30,
-            pady=(0, 8)
+            anchor="w",
+            padx=30
         )
 
         # CLIENTE
+
         ctk.CTkLabel(
             frame_form,
             text="Cliente",
@@ -709,17 +1076,18 @@ class App(ctk.CTk):
 
         entry_cliente = ctk.CTkEntry(
             frame_form,
-            width=500,
+            width=580,
             height=40,
             placeholder_text="Informe o cliente"
         )
 
         entry_cliente.pack(
-            padx=30,
-            pady=(0, 8)
+            anchor="w",
+            padx=30
         )
 
         # MOTIVO
+
         ctk.CTkLabel(
             frame_form,
             text="Motivo da Devolução",
@@ -736,51 +1104,19 @@ class App(ctk.CTk):
 
         entry_motivo = ctk.CTkEntry(
             frame_form,
-            width=500,
+            width=580,
             height=40,
             placeholder_text="Informe o motivo"
         )
 
         entry_motivo.pack(
-            padx=30,
-            pady=(0, 8)
-        )
-
-        # VALOR
-
-        ctk.CTkLabel(
-            frame_form,
-            text="Valor Final da NF",
-            font=(
-                "Arial",
-                14,
-                "bold"
-            )
-        ).pack(
             anchor="w",
-            padx=30,
-            pady=(8, 3)
+            padx=30
         )
 
-        entry_valor = ctk.CTkEntry(
-            frame_form,
-            width=500,
-            height=40,
-            placeholder_text="Ex.: 15.250,50"
-        )
+        # SALVAR DEVOLUÇÃO
 
-        entry_valor.pack(
-            padx=30,
-            pady=(0, 15)
-        )
-
-        # Função para salvar os dados do formulário
         def salvar():
-            oc = (
-                entry_oc
-                .get()
-                .strip()
-            )
 
             placa = (
                 entry_placa
@@ -801,38 +1137,32 @@ class App(ctk.CTk):
                 .strip()
             )
 
-            valor = (
-                entry_valor
-                .get()
-                .strip()
-            )
+            # VALIDAR CAMPOS
 
-            # VALIDAÇÃO CAMPOS
             campos_faltantes = []
 
-            if not oc:
+            if not lista_ocs:
+
                 campos_faltantes.append(
-                    "Número da OC"
+                    "Pelo menos uma OC"
                 )
 
             if not placa:
+
                 campos_faltantes.append(
                     "Placa do Caminhão"
                 )
 
             if not cliente:
+
                 campos_faltantes.append(
                     "Cliente"
                 )
 
             if not motivo:
+
                 campos_faltantes.append(
                     "Motivo"
-                )
-
-            if not valor:
-                campos_faltantes.append(
-                    "Valor Final da NF"
                 )
 
             if campos_faltantes:
@@ -851,64 +1181,58 @@ class App(ctk.CTk):
 
                 return
 
-            # VALOR DA NF
-            try:
-                valor_float = (self.converter_valor(valor))
-            except ValueError:
-                messagebox.showerror(
-                    "Valor Inválido",
-                    "Informe um valor válido para a NF.\n\n"
-                    "Exemplos:\n"
-                    "1500\n"
-                    "1500,50\n"
-                    "1.500,50\n"
-                    "R$ 1.500,50",
-                    parent=janela
-                )
-                return
+            # CALCULAR VALOR TOTAL
 
-            if valor_float < 0:
-                messagebox.showerror(
-                    "Valor Inválido",
-                    "O valor da NF não pode ser negativo.",
-                    parent=janela
-                )
-                return
+            total = sum(
+                item["valor_nf"]
+                for item in lista_ocs
+            )
+
+            # MONTAR TEXTO DAS OCs
+
+            ocs_texto = ", ".join(
+                item["numero_oc"]
+                for item in lista_ocs
+            )
 
             # CONFIRMAÇÃO
-            valor_formatado = (
-                self.formatar_moeda(
-                    valor_float
-                )
-            )
+
             resposta = messagebox.askyesno(
                 "Confirmar Abertura",
+
                 "Deseja iniciar esta devolução?\n\n"
-                f"OC: {oc}\n"
+
+                f"OCs: {ocs_texto}\n"
                 f"Placa: {placa}\n"
                 f"Cliente: {cliente}\n"
                 f"Motivo: {motivo}\n"
-                f"Valor NF: {valor_formatado}\n\n"
+                f"Valor total: "
+                f"{self.formatar_moeda(total)}\n\n"
+
                 f"Conferente: {self.conferente}",
+
                 parent=janela
             )
 
             if not resposta:
                 return
 
-            # BANCO
+            # GRAVAR NO BANCO
+
             try:
+
                 devolucao_id = (
                     self.db.criar_devolucao(
                         self.conferente,
-                        oc,
+                        lista_ocs,
                         placa,
                         motivo,
-                        cliente,
-                        valor_float
+                        cliente
                     )
                 )
+
             except Exception as erro:
+
                 messagebox.showerror(
                     "Erro",
                     "Falha ao iniciar a devolução:\n\n"
@@ -918,17 +1242,29 @@ class App(ctk.CTk):
 
                 return
 
-            # SUCESSO
+            # FECHAR MODAL
+
             janela.destroy()
+
+            # ATUALIZAR HOME
+
             self.carregar_abertas()
+
+            # SUCESSO
+
             messagebox.showinfo(
                 "Sucesso",
                 "Devolução iniciada com sucesso.\n\n"
+
                 f"ID: {devolucao_id}\n"
-                f"OC: {oc}"
+                f"Placa: {placa}\n"
+                f"OCs: {ocs_texto}\n"
+                f"Valor total: "
+                f"{self.formatar_moeda(total)}"
             )
 
-        # BOTÕES MODAL
+        # BOTÕES
+
         frame_acoes = ctk.CTkFrame(
             frame_form,
             fg_color="transparent"
@@ -937,8 +1273,10 @@ class App(ctk.CTk):
         frame_acoes.pack(
             fill="x",
             padx=30,
-            pady=15
+            pady=20
         )
+
+        # CANCELAR
 
         ctk.CTkButton(
             frame_acoes,
@@ -951,6 +1289,8 @@ class App(ctk.CTk):
         ).pack(
             side="left"
         )
+
+        # INICIAR
 
         ctk.CTkButton(
             frame_acoes,
@@ -969,18 +1309,13 @@ class App(ctk.CTk):
             side="right"
         )
 
-        # Enter no último campo salva
-        entry_valor.bind(
-            "<Return>",
-            lambda event:
-            salvar()
-        )
+        # FOCO INICIAL
 
         janela.after(
             200,
             entry_oc.focus_force
         )
-
+    
     # Função para finalizar devolução
     def finalizar_devolucao(self):
         selecionado = (self.tree.selection())
@@ -1000,7 +1335,7 @@ class App(ctk.CTk):
         )
 
         devolucao_id = valores[0]
-        numero_oc = valores[1]
+        ocs = valores[1]
         cliente = valores[2]
         placa = valores[3]
         motivo = valores[4]
@@ -1013,7 +1348,7 @@ class App(ctk.CTk):
             "Finalizar Devolução",
             "Deseja realmente finalizar "
             "esta devolução?\n\n"
-            f"OC: {numero_oc}\n"
+            f"OCs: {ocs}\n"
             f"Cliente: {cliente}\n"
             f"Placa: {placa}\n"
             f"Motivo: {motivo}\n"
@@ -1060,7 +1395,7 @@ class App(ctk.CTk):
         messagebox.showinfo(
             "Sucesso",
             "Devolução finalizada com sucesso.\n\n"
-            f"OC: {numero_oc}"
+            f"OCs: {ocs}"
         )
 
     # Função de exportação

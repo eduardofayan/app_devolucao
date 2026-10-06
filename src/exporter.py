@@ -3,7 +3,10 @@ import pandas as pd
 
 # Função para exportar registros de devoluções de um determinado mês e ano para um arquivo Excel.
 def exportar_mes(db, mes, ano, caminho):
-    registros = db.buscar_mes(mes,ano)
+    registros = db.buscar_mes_exportacao(
+        mes,
+        ano
+    )
     if not registros:
         raise ValueError(
             "Nenhuma devolução encontrada "
