@@ -593,7 +593,7 @@ class App(ctk.CTk):
                 values=(
                     row["id"],
                     row["numero_oc"],
-                    row["cliente"],
+                    row["clientes"],
                     row["placa_caminhao"],
                     row["motivo"],
                     valor,
@@ -619,43 +619,7 @@ class App(ctk.CTk):
             "Iniciar Nova Devolução"
         )
 
-        janela.resizable(
-            False,
-            False
-        )
-
-        largura = 700
-        altura = 780
-
-        janela.geometry(
-            f"{largura}x{altura}"
-        )
-
-        # CENTRALIZAR JANELA
-        janela.update_idletasks()
-
-        x = (
-            janela.winfo_screenwidth()
-            - largura
-        ) // 2
-
-        y = (
-            janela.winfo_screenheight()
-            - altura
-        ) // 2
-
-        janela.geometry(
-            f"{largura}x{altura}+{x}+{y}"
-        )
-
-        janela.transient(self)
-
-        janela.grab_set()
-
-        # Abrir janela no maximo
         janela.state("zoomed")
-
-        # LISTA DAS OCs
 
         lista_ocs = []
 
@@ -680,27 +644,18 @@ class App(ctk.CTk):
         )
 
         frame_form.pack(
-            expand=True,
-            fill="both",
+            fill="x",
             padx=25,
             pady=(0, 20)
         )
 
-        # NÚMERO DA OC
-
-        ctk.CTkLabel(
-            frame_form,
-            text="Número da OC",
-            font=(
-                "Arial",
-                14,
-                "bold"
+        validacao_oc = (
+            janela.register(
+                self.validar_somente_numeros
             )
-        ).pack(
-            anchor="w",
-            padx=30,
-            pady=(15, 3)
         )
+
+        # ÁREA DAS OCs
 
         frame_oc = ctk.CTkFrame(
             frame_form,
@@ -709,20 +664,48 @@ class App(ctk.CTk):
 
         frame_oc.pack(
             fill="x",
-            padx=30
+            padx=30,
+            pady=(15, 5),
+            anchor="w"
+        )
+        # TÍTULO
+
+        ctk.CTkLabel(
+            frame_oc,
+            text="Número da OC",
+            font=("Arial", 14, "bold")
+        ).grid(
+            row=0,
+            column=0,
+            sticky="w"
         )
 
-        # VALIDAÇÃO DA OC
-        # SOMENTE NÚMEROS
-
-        validacao_oc = (
-            janela.register(
-                self.validar_somente_numeros
-            )
+        ctk.CTkLabel(
+            frame_oc,
+            text="Cliente",
+            font=("Arial", 14, "bold")
+        ).grid(
+            row=0,
+            column=1,
+            padx=(10, 0),
+            sticky="w"
         )
+
+        ctk.CTkLabel(
+            frame_oc,
+            text="Valor NF",
+            font=("Arial", 14, "bold")
+        ).grid(
+            row=0,
+            column=2,
+            padx=(10, 0),
+            sticky="w"
+        )
+        # INPUT
 
         entry_oc = ctk.CTkEntry(
             frame_oc,
+            width=250,
             height=40,
             placeholder_text="Número da OC",
             validate="key",
@@ -732,14 +715,26 @@ class App(ctk.CTk):
             )
         )
 
-        entry_oc.pack(
-            side="left",
-            expand=True,
-            fill="x",
-            padx=(0, 5)
+        entry_oc.grid(
+            row=1,
+            column=0,
+            padx=(0, 10),
+            pady=(3, 0)
         )
 
-        # VALOR DA NF DA OC
+        entry_cliente_oc = ctk.CTkEntry(
+            frame_oc,
+            width=420,
+            height=40,
+            placeholder_text="Cliente"
+        )
+
+        entry_cliente_oc.grid(
+            row=1,
+            column=1,
+            padx=(10, 10),
+            pady=(3, 0)
+        )
 
         entry_valor_oc = ctk.CTkEntry(
             frame_oc,
@@ -748,10 +743,13 @@ class App(ctk.CTk):
             placeholder_text="Valor NF"
         )
 
-        entry_valor_oc.pack(
-            side="left",
-            padx=5
+        entry_valor_oc.grid(
+            row=1,
+            column=2,
+            padx=(10, 10),
+            pady=(3, 0)
         )
+
 
         # LISTAGEM DAS OCs ADICIONADAS
 
@@ -762,7 +760,13 @@ class App(ctk.CTk):
         frame_lista.pack(
             fill="x",
             padx=30,
-            pady=10
+            pady=(20, 10)
+        )
+        ctk.CTkLabel(
+            frame_form,
+            text=""
+        ).pack(
+            pady=5
         )
 
         lbl_lista = ctk.CTkLabel(
@@ -817,7 +821,8 @@ class App(ctk.CTk):
             for item in lista_ocs:
 
                 linhas.append(
-                    f"OC {item['numero_oc']}  |  "
+                    f"OC {item['numero_oc']} | "
+                    f"{item['cliente']} | "
                     f"{self.formatar_moeda(item['valor_nf'])}"
                 )
 
@@ -843,6 +848,12 @@ class App(ctk.CTk):
 
             numero_oc = (
                 entry_oc
+                .get()
+                .strip()
+            )
+
+            cliente_oc = (
+                entry_cliente_oc
                 .get()
                 .strip()
             )
@@ -901,6 +912,18 @@ class App(ctk.CTk):
 
                 return
 
+            # VALIDAR CLIENTE 
+            if not cliente_oc:
+                messagebox.showwarning(
+                    "Cliente",
+                    "Informe o cliente da OC.",
+                    parent=janela
+                )
+
+                entry_cliente_oc.focus_force()
+
+                return
+
             # VALIDAR VALOR
 
             if not valor:
@@ -956,6 +979,7 @@ class App(ctk.CTk):
             lista_ocs.append(
                 {
                     "numero_oc": numero_oc,
+                    "cliente": cliente_oc,
                     "valor_nf": valor_float
                 }
             )
@@ -963,6 +987,11 @@ class App(ctk.CTk):
             # LIMPAR CAMPOS
 
             entry_oc.delete(
+                0,
+                "end"
+            )
+
+            entry_cliente_oc.delete(
                 0,
                 "end"
             )
@@ -978,15 +1007,21 @@ class App(ctk.CTk):
 
         # BOTÃO ADICIONAR OC
 
-        ctk.CTkButton(
+        btn_adicionar = ctk.CTkButton(
             frame_oc,
             text="+ ADICIONAR",
-            width=110,
+            width=140,
             height=40,
+            fg_color="#138D75",
+            hover_color="#117864",
             command=adicionar_oc
-        ).pack(
-            side="right",
-            padx=(5, 0)
+        )
+
+        btn_adicionar.grid(
+            row=1,
+            column=3,
+            padx=(15, 0),
+            pady=(3, 0)
         )
 
         # ENTER NO VALOR ADICIONA A OC
@@ -1058,34 +1093,6 @@ class App(ctk.CTk):
             padx=30
         )
 
-        # CLIENTE
-
-        ctk.CTkLabel(
-            frame_form,
-            text="Cliente",
-            font=(
-                "Arial",
-                14,
-                "bold"
-            )
-        ).pack(
-            anchor="w",
-            padx=30,
-            pady=(8, 3)
-        )
-
-        entry_cliente = ctk.CTkEntry(
-            frame_form,
-            width=580,
-            height=40,
-            placeholder_text="Informe o cliente"
-        )
-
-        entry_cliente.pack(
-            anchor="w",
-            padx=30
-        )
-
         # MOTIVO
 
         ctk.CTkLabel(
@@ -1125,12 +1132,6 @@ class App(ctk.CTk):
                 .upper()
             )
 
-            cliente = (
-                entry_cliente
-                .get()
-                .strip()
-            )
-
             motivo = (
                 entry_motivo
                 .get()
@@ -1151,12 +1152,6 @@ class App(ctk.CTk):
 
                 campos_faltantes.append(
                     "Placa do Caminhão"
-                )
-
-            if not cliente:
-
-                campos_faltantes.append(
-                    "Cliente"
                 )
 
             if not motivo:
@@ -1195,6 +1190,15 @@ class App(ctk.CTk):
                 for item in lista_ocs
             )
 
+            clientes = ", ".join(
+                sorted(
+                    {
+                        item["cliente"]
+                        for item in lista_ocs
+                    }
+                )
+            )
+
             # CONFIRMAÇÃO
 
             resposta = messagebox.askyesno(
@@ -1204,7 +1208,7 @@ class App(ctk.CTk):
 
                 f"OCs: {ocs_texto}\n"
                 f"Placa: {placa}\n"
-                f"Cliente: {cliente}\n"
+                f"Cliente: {clientes}\n"
                 f"Motivo: {motivo}\n"
                 f"Valor total: "
                 f"{self.formatar_moeda(total)}\n\n"
@@ -1226,8 +1230,7 @@ class App(ctk.CTk):
                         self.conferente,
                         lista_ocs,
                         placa,
-                        motivo,
-                        cliente
+                        motivo
                     )
                 )
 

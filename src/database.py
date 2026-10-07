@@ -38,7 +38,7 @@ class DevolucaoDatabase:
                     numero_oc TEXT NOT NULL,
                     placa_caminhao TEXT NOT NULL,
                     motivo TEXT NOT NULL,
-                    cliente TEXT NOT NULL,
+                    clientes TEXT NOT NULL,
                     valor_nf REAL NOT NULL,
                     data_hora_inicio TEXT NOT NULL,
                     data_hora_fim TEXT,
@@ -55,13 +55,10 @@ class DevolucaoDatabase:
                 CREATE TABLE IF NOT EXISTS ocs_devolucao
                 (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
-
                     devolucao_id INTEGER NOT NULL,
-
                     numero_oc TEXT NOT NULL,
-
+                    cliente TEXT NOT NULL,
                     valor_nf REAL NOT NULL,
-
                     FOREIGN KEY (devolucao_id)
                     REFERENCES devolucoes(id)
                     ON DELETE CASCADE,
@@ -94,7 +91,7 @@ class DevolucaoDatabase:
             conn.commit()
 
     # Função para criar uma nova devolução.
-    def criar_devolucao(self, conferente, lista_ocs, placa, motivo, cliente):
+    def criar_devolucao(self, conferente, lista_ocs, placa, motivo):
         agora = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         valor_total = sum(
             item["valor_nf"]
@@ -102,6 +99,15 @@ class DevolucaoDatabase:
         )
 
         with self.conectar() as conn:
+            clientes = ", ".join(
+                sorted(
+                    {
+                        item["cliente"]
+                        for item in lista_ocs
+                    }
+                )
+            )
+
             cursor = conn.execute(
                 """
                 INSERT INTO devolucoes
@@ -110,7 +116,7 @@ class DevolucaoDatabase:
                     numero_oc,
                     placa_caminhao,
                     motivo,
-                    cliente,
+                    clientes,
                     valor_nf,
                     data_hora_inicio,
                     status
@@ -127,10 +133,15 @@ class DevolucaoDatabase:
                     ),
 
                     placa.upper(),
+
                     motivo,
-                    cliente,
+
+                    clientes,
+
                     valor_total,
+
                     agora,
+
                     "ABERTA"
                 )
             )
@@ -145,14 +156,16 @@ class DevolucaoDatabase:
                     (
                         devolucao_id,
                         numero_oc,
+                        cliente,
                         valor_nf
                     )
 
-                    VALUES (?, ?, ?)
+                    VALUES (?, ?, ?, ?)
                     """,
                     (
                         devolucao_id,
                         item["numero_oc"],
+                        item["cliente"],
                         item["valor_nf"]
                     )
                 )
@@ -243,9 +256,9 @@ class DevolucaoDatabase:
                     d.id,
                     d.conferente_abertura,
                     o.numero_oc,
+                    o.cliente,
                     d.placa_caminhao,
                     d.motivo,
-                    d.cliente,
                     o.valor_nf,
                     d.data_hora_inicio,
                     d.data_hora_fim,
