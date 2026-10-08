@@ -2,6 +2,8 @@ from datetime import datetime
 from tkinter import ttk, messagebox, filedialog
 from PIL import Image
 from src.database import DevolucaoDatabase
+from src.destinos import obter_destinatarios
+from src.email_sender import EmailSender
 from src.exporter import exportar_mes
 from src.resource_path import resource_path
 import customtkinter as ctk
@@ -1341,10 +1343,18 @@ class App(ctk.CTk):
         ocs = valores[1]
         cliente = valores[2]
         placa = valores[3]
+        nome_arquivo = (
+            f"devolucao_placa_{placa}.xlsx"
+        )
         motivo = valores[4]
         valor = valores[5]
         inicio = valores[6]
         aberto_por = valores[7]
+
+        destino = self.selecionar_destino()
+
+        if not destino:
+            return
 
         # CONFIRMAÇÃO
         resposta = messagebox.askyesno(
@@ -1368,9 +1378,12 @@ class App(ctk.CTk):
             sucesso = (
                 self.db.finalizar_devolucao(
                     devolucao_id,
-                    self.conferente
+                    self.conferente,
+                    destino,
                 )
             )
+
+            fim = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
         except Exception as erro:
             messagebox.showerror(
                 "Erro",
@@ -1379,6 +1392,71 @@ class App(ctk.CTk):
                 f"{erro}"
             )
             return
+
+        if destino != "SEM_EMAIL":
+
+            destinatarios = obter_destinatarios(
+                destino
+            )
+
+            tabela_ocs_clientes = "".join(
+                f"<tr><td>{oc}</td><td>{cli}</td></tr>"
+                for oc, cli in zip(ocs.split(","), cliente.split(","))
+            )
+
+            EmailSender.enviar(
+                destinatarios=destinatarios,
+                assunto=f"CONFERÊNCIA DE DEVOLUÇÃO - CAMINHÃO PLACA: {placa}",
+                mensagem=f"""
+                <html>
+                    <body>
+
+                        <h2>Devolução Finalizada</h2>
+                        <table border="1">
+                            <tr>
+                                <th>OC</th>
+                                <th>Cliente</th>
+                            </tr>
+                            {tabela_ocs_clientes}
+                        </table>
+
+                        <p>
+                            <b>Placa:</b> {placa}
+                        </p>
+
+                        <p>
+                            <b>Motivo:</b> {motivo}
+                        </p>
+
+                        <p>
+                            <b>Valor Total:</b> {valor}
+                        </p>
+
+                        <p>
+                            <b>Conferente:</b> {self.conferente}
+                        </p>
+
+                        <p>
+                            <b>Destino:</b> {destino}
+                        </p>
+
+                        <p>
+                            <b>Início:</b> {inicio}
+                        </p>
+                        <p>
+                            <b>Fim:</b> {fim}
+                        </p>
+
+                        <br>
+
+                        <p>
+                            Esta devolução foi finalizada pelo sistema de Controle de Devoluções.
+                        </p>
+
+                    </body>
+                </html>
+                """
+            )
 
         # Se não conseguiu finalizar (já finalizada)
         if not sucesso:
@@ -1389,6 +1467,17 @@ class App(ctk.CTk):
                 "A listagem será atualizada."
             )
             self.carregar_abertas()
+            return
+
+        if destino == "SEM_EMAIL":
+
+            self.carregar_abertas()
+
+            messagebox.showinfo(
+                "Sucesso",
+                "Devolução finalizada sem envio de e-mail."
+            )
+
             return
 
         # REFRESH
@@ -1643,8 +1732,69 @@ class App(ctk.CTk):
             pady=30
         )
 
-    # Função para converter valor brasileiro em float
-    
+    # Função para selecionar o destino de uma devolução
+    def selecionar_destino(self):
+
+        destino = ctk.StringVar()
+
+        janela = ctk.CTkToplevel(self)
+
+        janela.title("Destino")
+
+        janela.geometry("400x300")
+
+        janela.transient(self)
+
+        janela.grab_set()
+
+        ctk.CTkLabel(
+            janela,
+            text="Selecione o Destino",
+            font=("Arial", 18, "bold")
+        ).pack(
+            pady=20
+        )
+
+        for opcao in [
+            "9ACABADO",
+            "9QUARENT",
+            "9TRIAGEM",
+            "9DESENVOLV"
+        ]:
+
+            ctk.CTkRadioButton(
+                janela,
+                text=opcao,
+                variable=destino,
+                value=opcao
+            ).pack(
+                anchor="w",
+                padx=40,
+                pady=5
+            )
+
+        retorno = {
+            "valor": None
+        }
+
+        def confirmar():
+
+            retorno["valor"] = destino.get()
+
+            janela.destroy()
+
+        ctk.CTkButton(
+            janela,
+            text="CONFIRMAR",
+            command=confirmar
+        ).pack(
+            pady=20
+        )
+
+        self.wait_window(janela)
+
+        return retorno["valor"]
+
 if __name__ == "__main__":
     app = App()
     app.mainloop()   

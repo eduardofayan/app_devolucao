@@ -40,6 +40,7 @@ class DevolucaoDatabase:
                     motivo TEXT NOT NULL,
                     clientes TEXT NOT NULL,
                     valor_nf REAL NOT NULL,
+                    destino TEXT,
                     data_hora_inicio TEXT NOT NULL,
                     data_hora_fim TEXT,
                     conferente_finalizacao TEXT,
@@ -70,6 +71,19 @@ class DevolucaoDatabase:
                 )
                 """
             )
+
+            try:
+
+                conn.execute(
+                    """
+                    ALTER TABLE devolucoes
+                    ADD COLUMN destino TEXT
+                    """
+                )
+
+            except sqlite3.OperationalError:
+                # Coluna já existe
+                pass
 
             # Índices para melhorar as buscas
             conn.execute(
@@ -188,7 +202,7 @@ class DevolucaoDatabase:
         return registros
 
     # Função para finalizar uma devolução.
-    def finalizar_devolucao(self, devolucao_id, conferente):
+    def finalizar_devolucao(self, devolucao_id, conferente, destino):
         agora = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
         # Atualiza a devolução para finalizada com a data e hora atual.
@@ -198,8 +212,10 @@ class DevolucaoDatabase:
                 UPDATE devolucoes
 
                 SET
+
                     data_hora_fim = ?,
                     conferente_finalizacao = ?,
+                    destino = ?,
                     status = 'FINALIZADA'
 
                 WHERE id = ?
@@ -208,6 +224,7 @@ class DevolucaoDatabase:
                 (
                     agora,
                     conferente,
+                    destino,
                     devolucao_id
                 )
             )
